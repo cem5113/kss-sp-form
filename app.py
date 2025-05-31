@@ -8,7 +8,12 @@ from io import BytesIO
 st.set_page_config(page_title="KSS & SP Fatigue Assessment", layout="centered")
 st.title("🧠 KSS & SP Fatigue Assessment Form")
 
-st.markdown("This form allows helicopter pilots to self-report their fatigue levels **before and after flights** using the Karolinska Sleepiness Scale (KSS) and Samn–Perelli Fatigue Scale (SP).")
+st.markdown("""
+This form allows helicopter pilots to self-report their fatigue levels **before and after flights** using:
+
+- **KSS (Karolinska Sleepiness Scale)**
+- **SP (Samn–Perelli Fatigue Scale)**
+""")
 
 with st.form("fatigue_form"):
     st.subheader("✈️ Pilot Information")
@@ -17,11 +22,28 @@ with st.form("fatigue_form"):
     flight_phase = st.radio("Assessment Time", ["Pre-Flight", "Post-Flight"])
     date = st.date_input("Date", datetime.date.today())
 
-    st.subheader("😴 KSS (Karolinska Sleepiness Scale)")
-    kss = st.slider("KSS Score (1 = Very alert, 9 = Fighting sleep)", 1, 9, 5)
+    st.subheader("😴 KSS - Karolinska Sleepiness Scale")
+    st.markdown("""
+**The Karolinska Sleepiness Scale (KSS)** is a self-rated scale that reflects your current level of sleepiness:
 
-    st.subheader("😩 SP (Samn–Perelli Fatigue Scale)")
-    sp = st.slider("SP Score (1 = Fully alert, 7 = Completely exhausted)", 1, 7, 3)
+- 1 = Extremely alert  
+- 3 = Alert  
+- 5 = Neither alert nor sleepy  
+- 7 = Sleepy, but no effort to stay awake  
+- 9 = Very sleepy, fighting sleep
+""")
+    kss = st.slider("Select your KSS score", 1, 9, 5)
+
+    st.subheader("😩 SP - Samn–Perelli Fatigue Scale")
+    st.markdown("""
+**The Samn–Perelli Fatigue Scale (SP)** is used to rate general fatigue level during operational tasks:
+
+- 1 = Fully alert  
+- 3 = Somewhat tired  
+- 5 = Very tired  
+- 7 = Completely exhausted
+""")
+    sp = st.slider("Select your SP score", 1, 7, 3)
 
     submitted = st.form_submit_button("Submit")
 
@@ -36,9 +58,7 @@ if submitted:
     }
 
     df = pd.DataFrame([new_row])
-
-    from io import BytesIO
-    output = BytesIO()  # ✅ Hata buradaydı, doğru yerde tanımlanmalı
+    output = BytesIO()
 
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='KSS_SP_Data')
