@@ -37,9 +37,12 @@ if submitted:
 
     df = pd.DataFrame([new_row])
 
-    output = BytesIO()
+    from io import BytesIO
+    output = BytesIO()  # ✅ Hata buradaydı, doğru yerde tanımlanmalı
+
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='KSS_SP_Data')
+
     output.seek(0)
 
     st.success("✅ Your data has been recorded below:")
