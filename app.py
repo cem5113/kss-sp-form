@@ -47,6 +47,10 @@ with st.form("fatigue_form"):
 
     submitted = st.form_submit_button("Submit")
 
+    st.markdown("""
+    📌 *Please make sure to inform the operator after completing the form to ensure your data is properly collected.*
+    """)
+
 if submitted:
     new_row = {
         "Pilot_ID": pilot_id,
