@@ -40,7 +40,6 @@ if submitted:
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='KSS_SP_Data')
-        writer.save()
     output.seek(0)
 
     st.success("✅ Your data has been recorded below:")
