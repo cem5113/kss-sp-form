@@ -92,6 +92,10 @@ elif st.session_state.step == 2:
                 st.session_state.pvt_scores.append(average_rt)
                 st.session_state.pvt_in_progress = False
                 st.session_state.trial_start = None
+        else:
+            wait_time = int(st.session_state.trial_start - now)
+            st.info(f"🕒 Wait for green signal... ({wait_time + 1} sec)")
+
 
     if st.session_state.pvt_scores:
         st.subheader("📊 PVT Attempt Results")
