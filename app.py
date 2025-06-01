@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 import hashlib
 import streamlit.components.v1 as components
@@ -36,10 +36,10 @@ if not st.session_state.authenticated:
 
 # === STEP 1: KSS & SP FORM ===
 if st.session_state.step == 0:
-    st.subheader("📝 Fatigue Self-Assessment")
+    st.subheader("📜 Fatigue Self-Assessment")
     st.markdown("""
-    ### 🧾 About the Scales
-    
+    ### 📟 About the Scales
+
     - **Karolinska Sleepiness Scale (KSS):** Rates how sleepy you feel right now, from 1 (Very alert) to 9 (Very sleepy).
     - **Samn–Perelli Scale (SP):** Measures fatigue level, from 1 (Fully alert) to 7 (Completely exhausted).
     """)
@@ -76,11 +76,11 @@ if st.session_state.step == 1:
 
 # === STEP 3: WRITE TO GOOGLE SHEETS ===
 if st.session_state.step == 2:
-    st.subheader("📤 Submitting Data...")
+    st.subheader("📄 Submitting Data...")
 
-    # Google Sheets API Setup
+    # Google Sheets API Setup using google-auth
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["google_sheets"], scope)
+    creds = Credentials.from_service_account_info(st.secrets["google_sheets"], scopes=scope)
     client = gspread.authorize(creds)
     sheet = client.open("Pilot_Fatigue_Results")
 
@@ -103,7 +103,7 @@ if st.session_state.step == 2:
 if st.session_state.step == 3:
     st.subheader("📈 Your Previous Results")
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["google_sheets"], scope)
+    creds = Credentials.from_service_account_info(st.secrets["google_sheets"], scopes=scope)
     client = gspread.authorize(creds)
     sheet = client.open("Pilot_Fatigue_Results")
     worksheet = sheet.worksheet(f"pilot_{st.session_state.pilot_id}")
