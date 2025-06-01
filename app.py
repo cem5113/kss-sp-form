@@ -48,15 +48,28 @@ if st.session_state.step == 0:
         st.session_state.step = 1
 
 # STEP 2: Confirmation
-elif st.session_state.step == 1:
-    st.subheader("📋 Confirm Your Inputs")
-    st.write(pd.DataFrame([st.session_state.form_data]))
+elif st.session_state.pvt_in_progress:
+    now = time.time()
+    wait_time = st.session_state.trial_start - now
 
-    if st.button("✅ Confirm and Proceed to PVT"):
-        st.session_state.confirmed = True
-        st.session_state.step = 2
-    elif st.button("🔄 Edit Inputs"):
-        st.session_state.step = 0
+    if wait_time > 0:
+        with st.empty():
+            while time.time() < st.session_state.trial_start:
+                remaining = int(st.session_state.trial_start - time.time()) + 1
+                st.info(f"⏳ Wait for green signal... ({remaining} sec)")
+                time.sleep(1)
+        st.experimental_rerun()  # Force rerender after wait is over
+
+    else:
+        st.success("🟢 CLICK NOW!")
+        if st.button("Click!"):
+            reaction = (time.time() - st.session_state.trial_start) * 1000
+            st.session_state.reactions.append(reaction)
+            st.success(f"Your reaction time: {reaction:.1f} ms")
+            average_rt = sum(st.session_state.reactions) / len(st.session_state.reactions)
+            st.session_state.pvt_scores.append(average_rt)
+            st.session_state.pvt_in_progress = False
+            st.session_state.trial_start = None
 
 # STEP 3: PVT Test with 2 attempts
 elif st.session_state.step == 2:
