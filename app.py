@@ -15,10 +15,17 @@ st.markdown("""
 This tool collects **subjective fatigue scores** and **reaction time** to monitor pilot fatigue before and after flights.
 """)
 
-# SESSION STATE INIT
-for key in ["step", "confirmed", "pvt_scores"]:
+# ✅ SESSION STATE INIT
+for key, default in {
+    "step": 0,
+    "confirmed": False,
+    "pvt_scores": [],
+    "pvt_in_progress": False,
+    "trial_start": None,
+    "reactions": []
+}.items():
     if key not in st.session_state:
-        st.session_state[key] = 0 if key == "step" else False if key == "confirmed" else []
+        st.session_state[key] = default
 
 # STEP 1: Fatigue Form
 if st.session_state.step == 0:
@@ -47,31 +54,18 @@ if st.session_state.step == 0:
         }
         st.session_state.step = 1
 
-# STEP 2: Confirmation
-elif st.session_state.pvt_in_progress:
-    now = time.time()
-    wait_time = st.session_state.trial_start - now
+# STEP 2: Confirm Inputs
+elif st.session_state.step == 1:
+    st.subheader("📋 Confirm Your Inputs")
+    st.write(pd.DataFrame([st.session_state.form_data]))
 
-    if wait_time > 0:
-        with st.empty():
-            while time.time() < st.session_state.trial_start:
-                remaining = int(st.session_state.trial_start - time.time()) + 1
-                st.info(f"⏳ Wait for green signal... ({remaining} sec)")
-                time.sleep(1)
-        st.experimental_rerun()  # Force rerender after wait is over
+    if st.button("✅ Confirm and Proceed to PVT"):
+        st.session_state.confirmed = True
+        st.session_state.step = 2
+    elif st.button("🔄 Edit Inputs"):
+        st.session_state.step = 0
 
-    else:
-        st.success("🟢 CLICK NOW!")
-        if st.button("Click!"):
-            reaction = (time.time() - st.session_state.trial_start) * 1000
-            st.session_state.reactions.append(reaction)
-            st.success(f"Your reaction time: {reaction:.1f} ms")
-            average_rt = sum(st.session_state.reactions) / len(st.session_state.reactions)
-            st.session_state.pvt_scores.append(average_rt)
-            st.session_state.pvt_in_progress = False
-            st.session_state.trial_start = None
-
-# STEP 3: PVT Test with 2 attempts
+# STEP 3: PVT Test (2 attempts max)
 elif st.session_state.step == 2:
     st.subheader("🎮 PVT (Psychomotor Vigilance Task) Test")
 
@@ -81,34 +75,34 @@ elif st.session_state.step == 2:
     - After your first attempt, you can either accept the result or try again.
     """)
 
-    if "pvt_in_progress" not in st.session_state:
-        st.session_state.pvt_in_progress = False
-        st.session_state.trial_start = None
-        st.session_state.reactions = []
-
     if not st.session_state.pvt_in_progress and len(st.session_state.pvt_scores) < 2:
         if st.button("▶️ Start PVT Test"):
             st.session_state.pvt_in_progress = True
             st.session_state.trial_start = time.time() + random.uniform(2, 5)
             st.session_state.reactions = []
-            st.session_state.clicked = False
 
-    elif st.session_state.pvt_in_progress:
+    # PVT Logic
+    if st.session_state.pvt_in_progress:
         now = time.time()
-        if now >= st.session_state.trial_start:
-            st.write("🟢 CLICK!")
+        wait_time = st.session_state.trial_start - now
+
+        if wait_time > 0:
+            with st.empty():
+                while time.time() < st.session_state.trial_start:
+                    remaining = int(st.session_state.trial_start - time.time()) + 1
+                    st.info(f"⏳ Wait for green signal... ({remaining} sec)")
+                    time.sleep(1)
+            st.experimental_rerun()
+        else:
+            st.success("🟢 CLICK NOW!")
             if st.button("Click!"):
                 reaction = (time.time() - st.session_state.trial_start) * 1000
                 st.session_state.reactions.append(reaction)
-                st.success(f"Your reaction time: {reaction:.1f} ms")
-                average_rt = sum(st.session_state.reactions) / len(st.session_state.reactions)
-                st.session_state.pvt_scores.append(average_rt)
+                avg_rt = sum(st.session_state.reactions) / len(st.session_state.reactions)
+                st.success(f"Your reaction time: {reaction:.1f} ms (Avg: {avg_rt:.1f} ms)")
+                st.session_state.pvt_scores.append(avg_rt)
                 st.session_state.pvt_in_progress = False
                 st.session_state.trial_start = None
-        else:
-            wait_time = int(st.session_state.trial_start - now)
-            st.info(f"🕒 Wait for green signal... ({wait_time + 1} sec)")
-
 
     if st.session_state.pvt_scores:
         st.subheader("📊 PVT Attempt Results")
@@ -120,6 +114,7 @@ elif st.session_state.step == 2:
                 st.session_state.pvt_in_progress = False
                 st.session_state.trial_start = None
                 st.session_state.reactions = []
+
         if st.button("💾 Save and Finish"):
             st.session_state.step = 3
 
