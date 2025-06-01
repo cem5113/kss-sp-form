@@ -1,80 +1,103 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
-import datetime
-from io import BytesIO
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
+import hashlib
+import streamlit.components.v1 as components
 
-st.set_page_config(page_title="KSS & SP Fatigue Assessment", layout="centered")
-st.title("🧠 KSS & SP Fatigue Assessment Form")
+# === PAGE CONFIG ===
+st.set_page_config(page_title="Pilot Fatigue Assessment", layout="centered")
+st.title("🧠 Pilot Fatigue Assessment: KSS, SP & PVT")
 
-st.markdown("""
-This form allows helicopter pilots to self-report their fatigue levels **before and after flights** using:
+# === SESSION STATE INIT ===
+for key in ["step", "kss", "sp", "pvt_results", "attempt", "authenticated"]:
+    if key not in st.session_state:
+        st.session_state[key] = 0 if key == "step" else [] if key == "pvt_results" else 0 if key == "attempt" else False
 
-- **KSS (Karolinska Sleepiness Scale)**
-- **SP (Samn–Perelli Fatigue Scale)**
-""")
+# === HASHED PASSWORD VALIDATION ===
+def check_password(pilot_id, password):
+    correct_hash = hashlib.sha256("1234".encode()).hexdigest()
+    return hashlib.sha256(password.encode()).hexdigest() == correct_hash
 
-with st.form("fatigue_form"):
-    st.subheader("✈️ Pilot Information")
-    pilot_id = st.text_input("Pilot ID or Code")
-    flight_type = st.selectbox("Flight Type", ["Instructor", "First Officer", "Pilot"])
-    flight_phase = st.radio("Assessment Time", ["Pre-Flight", "Post-Flight"])
-    date = st.date_input("Date", datetime.date.today())
+# === LOGIN STEP ===
+if not st.session_state.authenticated:
+    st.subheader("🔐 Pilot Login")
+    pilot_id = st.text_input("Pilot ID", max_chars=20)
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if check_password(pilot_id, password):
+            st.session_state.authenticated = True
+            st.session_state.pilot_id = pilot_id
+            st.success("Login successful!")
+        else:
+            st.error("Invalid ID or password.")
+    st.stop()
 
-    st.subheader("😴 KSS - Karolinska Sleepiness Scale")
+# === STEP 1: KSS & SP FORM ===
+if st.session_state.step == 0:
+    st.subheader("📝 Fatigue Self-Assessment")
+    st.session_state.kss = st.slider("Karolinska Sleepiness Scale (1=Very alert, 9=Very sleepy)", 1, 9, 5)
+    st.session_state.sp = st.slider("Samn–Perelli Fatigue Scale (1=Fully alert, 7=Completely exhausted)", 1, 7, 4)
+    if st.button("Continue to Reaction Test"):
+        st.session_state.step = 1
+        st.experimental_rerun()
+
+# === STEP 2: INLINE PVT TEST ===
+if st.session_state.step == 1:
+    st.subheader("🧪 Psychomotor Vigilance Test")
+    st.info("You will be shown a red circle. Click it as fast as you can when it appears.")
     st.markdown("""
-**The Karolinska Sleepiness Scale (KSS)** is a self-rated scale that reflects your current level of sleepiness:
+    <iframe src="https://pvt-test.streamlit.app" width="100%" height="500"></iframe>
+    """, unsafe_allow_html=True)
+    st.warning("Once your PVT test ends, please enter your average reaction time and number of lapses.")
 
-- 1 = Extremely alert  
-- 3 = Alert  
-- 5 = Neither alert nor sleepy  
-- 7 = Sleepy, but no effort to stay awake  
-- 9 = Very sleepy, fighting sleep
-""")
-    kss = st.slider("Select your KSS score", 1, 9, 5)
+    avg_rt = st.number_input("Average Reaction Time (ms)", min_value=0, step=1)
+    lapses = st.number_input("Lapses (RT > 500 ms)", min_value=0, step=1)
 
-    st.subheader("😩 SP - Samn–Perelli Fatigue Scale")
-    st.markdown("""
-**The Samn–Perelli Fatigue Scale (SP)** is used to rate general fatigue level during operational tasks:
+    if st.button("Submit All Results"):
+        st.session_state.pvt_results = {
+            "avg_rt": avg_rt,
+            "lapses": lapses
+        }
+        st.session_state.step = 2
+        st.experimental_rerun()
 
-- 1 = Fully alert  
-- 3 = Somewhat tired  
-- 5 = Very tired  
-- 7 = Completely exhausted
-""")
-    sp = st.slider("Select your SP score", 1, 7, 3)
+# === STEP 3: WRITE TO GOOGLE SHEETS ===
+if st.session_state.step == 2:
+    st.subheader("📤 Submitting Data...")
 
-    submitted = st.form_submit_button("Submit")
+    # Google Sheets API Setup
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["google_sheets"], scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("Pilot_Fatigue_Results")
 
-    st.markdown("""
-    📌 *Please make sure to inform the operator after completing the form to ensure your data is properly collected.*
-    """)
+    sheet_name = f"pilot_{st.session_state.pilot_id}"
+    try:
+        worksheet = sheet.worksheet(sheet_name)
+    except:
+        worksheet = sheet.add_worksheet(title=sheet_name, rows="100", cols="20")
+        worksheet.append_row(["Timestamp", "KSS", "SP", "Avg_RT (ms)", "Lapses"])
 
-if submitted:
-    new_row = {
-        "Pilot_ID": pilot_id,
-        "Flight_Type": flight_type,
-        "Flight_Phase": flight_phase,
-        "Date": date,
-        "KSS": kss,
-        "SP": sp
-    }
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    new_row = [now, st.session_state.kss, st.session_state.sp, st.session_state.pvt_results["avg_rt"], st.session_state.pvt_results["lapses"]]
+    worksheet.append_row(new_row)
 
-    df = pd.DataFrame([new_row])
-    output = BytesIO()
+    st.success("✅ Results submitted successfully!")
+    st.session_state.step = 3
+    st.experimental_rerun()
 
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='KSS_SP_Data')
-
-    output.seek(0)
-
-    st.success("✅ Your data has been recorded below:")
+# === STEP 4: DISPLAY PAST RECORDS ===
+if st.session_state.step == 3:
+    st.subheader("📈 Your Previous Results")
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["google_sheets"], scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("Pilot_Fatigue_Results")
+    worksheet = sheet.worksheet(f"pilot_{st.session_state.pilot_id}")
+    data = worksheet.get_all_records()
+    df = pd.DataFrame(data)
     st.dataframe(df)
 
-    st.download_button(
-        label="📥 Download as Excel",
-        data=output,
-        file_name="kss_sp_submission.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    st.info("You may close the app now. Thank you for your input.")
