@@ -53,9 +53,14 @@ if st.session_state.step == 0:
 if st.session_state.step == 1:
     st.subheader("🧪 Psychomotor Vigilance Test")
     st.info("You will be shown a red circle. Click it as fast as you can when it appears.")
-    st.markdown("""
-    <iframe src="https://pvt-test.streamlit.app" width="100%" height="500"></iframe>
-    """, unsafe_allow_html=True)
+
+    try:
+        with open("pvt.html", "r") as f:
+            pvt_html = f.read()
+        components.html(pvt_html, height=650, scrolling=False)
+    except FileNotFoundError:
+        st.error("PVT test file not found. Please upload 'pvt.html' to the app directory.")
+
     st.warning("Once your PVT test ends, please enter your average reaction time and number of lapses.")
 
     avg_rt = st.number_input("Average Reaction Time (ms)", min_value=0, step=1)
