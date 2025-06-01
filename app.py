@@ -37,11 +37,17 @@ if not st.session_state.authenticated:
 # === STEP 1: KSS & SP FORM ===
 if st.session_state.step == 0:
     st.subheader("📝 Fatigue Self-Assessment")
+    st.markdown("""
+    ### 🧾 About the Scales
+    
+    - **Karolinska Sleepiness Scale (KSS):** Rates how sleepy you feel right now, from 1 (Very alert) to 9 (Very sleepy).
+    - **Samn–Perelli Scale (SP):** Measures fatigue level, from 1 (Fully alert) to 7 (Completely exhausted).
+    """)
     st.session_state.kss = st.slider("Karolinska Sleepiness Scale (1=Very alert, 9=Very sleepy)", 1, 9, 5)
     st.session_state.sp = st.slider("Samn–Perelli Fatigue Scale (1=Fully alert, 7=Completely exhausted)", 1, 7, 4)
     if st.button("Continue to Reaction Test"):
         st.session_state.step = 1
-        st.experimental_rerun()
+        st.rerun()
 
 # === STEP 2: INLINE PVT TEST ===
 if st.session_state.step == 1:
@@ -61,7 +67,7 @@ if st.session_state.step == 1:
             "lapses": lapses
         }
         st.session_state.step = 2
-        st.experimental_rerun()
+        st.rerun()
 
 # === STEP 3: WRITE TO GOOGLE SHEETS ===
 if st.session_state.step == 2:
@@ -86,7 +92,7 @@ if st.session_state.step == 2:
 
     st.success("✅ Results submitted successfully!")
     st.session_state.step = 3
-    st.experimental_rerun()
+    st.rerun()
 
 # === STEP 4: DISPLAY PAST RECORDS ===
 if st.session_state.step == 3:
