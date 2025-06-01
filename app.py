@@ -27,6 +27,7 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
+
 # STEP 1: Fatigue Form
 if st.session_state.step == 0:
     st.subheader("👤 Pilot Information")
@@ -81,42 +82,44 @@ elif st.session_state.step == 2:
             st.session_state.trial_start = time.time() + random.uniform(2, 5)
             st.session_state.reactions = []
 
-    # PVT Logic
-    if st.session_state.pvt_in_progress:
-        now = time.time()
-        wait_time = st.session_state.trial_start - now
+# PVT Logic
+if st.session_state.pvt_in_progress:
+    now = time.time()
+    wait_time = st.session_state.trial_start - now
 
-        if wait_time > 0:
-            with st.empty():
-                while time.time() < st.session_state.trial_start:
-                    remaining = int(st.session_state.trial_start - time.time()) + 1
-                    st.info(f"⏳ Wait for green signal... ({remaining} sec)")
-                    time.sleep(1)
-            st.experimental_rerun()
-        else:
-            st.success("🟢 CLICK NOW!")
-            if st.button("Click!"):
-                reaction = (time.time() - st.session_state.trial_start) * 1000
-                st.session_state.reactions.append(reaction)
-                avg_rt = sum(st.session_state.reactions) / len(st.session_state.reactions)
-                st.success(f"Your reaction time: {reaction:.1f} ms (Avg: {avg_rt:.1f} ms)")
-                st.session_state.pvt_scores.append(avg_rt)
-                st.session_state.pvt_in_progress = False
-                st.session_state.trial_start = None
+    if wait_time > 0:
+        st.info(f"⏳ Wait for green signal... ({int(wait_time) + 1} sec)")
+        time.sleep(wait_time)
+        st.session_state.force_display_click = True
+        st.stop()
 
-    if st.session_state.pvt_scores:
-        st.subheader("📊 PVT Attempt Results")
-        for i, score in enumerate(st.session_state.pvt_scores):
-            st.write(f"Attempt {i+1}: Avg Reaction Time = {score:.1f} ms")
+# Show CLICK NOW if ready
+if st.session_state.get("force_display_click", False):
+    st.success("🟢 CLICK NOW!")
+    if st.button("Click!"):
+        reaction = (time.time() - st.session_state.trial_start) * 1000
+        st.session_state.reactions.append(reaction)
+        avg_rt = sum(st.session_state.reactions) / len(st.session_state.reactions)
+        st.success(f"Your reaction time: {reaction:.1f} ms (Avg: {avg_rt:.1f} ms)")
+        st.session_state.pvt_scores.append(avg_rt)
+        st.session_state.pvt_in_progress = False
+        st.session_state.trial_start = None
+        st.session_state.force_display_click = False
 
-        if len(st.session_state.pvt_scores) == 1:
-            if st.button("🔁 Try Again (Final Attempt)"):
-                st.session_state.pvt_in_progress = False
-                st.session_state.trial_start = None
-                st.session_state.reactions = []
+# Results display
+if st.session_state.pvt_scores:
+    st.subheader("📊 PVT Attempt Results")
+    for i, score in enumerate(st.session_state.pvt_scores):
+        st.write(f"Attempt {i+1}: Avg Reaction Time = {score:.1f} ms")
 
-        if st.button("💾 Save and Finish"):
-            st.session_state.step = 3
+    if len(st.session_state.pvt_scores) == 1:
+        if st.button("🔁 Try Again (Final Attempt)"):
+            st.session_state.pvt_in_progress = False
+            st.session_state.trial_start = None
+            st.session_state.reactions = []
+
+    if st.button("💾 Save and Finish"):
+        st.session_state.step = 3
 
 # STEP 4: Save Result
 elif st.session_state.step == 3:
