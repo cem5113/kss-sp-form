@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 from io import BytesIO
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
 # === Function: Append to Google Sheets ===
 def append_to_google_sheet(data_row):
@@ -11,11 +11,11 @@ def append_to_google_sheet(data_row):
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    creds = Credentials.from_service_account_info(st.secrets["google_sheets"], scopes=scope)
     client = gspread.authorize(creds)
     sheet = client.open("Pilot_Fatigue_Records").worksheet("FormData")
 
-    # Avoid duplicate submissions: check if already submitted
+    # Avoid duplicate submissions
     existing_records = sheet.get_all_records()
     for row in existing_records:
         if row.get("Pilot_ID") == data_row[0] and row.get("Flight_Phase") == data_row[2] and row.get("Date") == data_row[3]:
@@ -32,7 +32,6 @@ This form allows helicopter pilots to self-report their fatigue levels **before 
 
 - **KSS (Karolinska Sleepiness Scale)**
 - **SP (Samn–Perelli Fatigue Scale)**
-
 You will first review and confirm your responses before sending.
 """)
 
@@ -48,26 +47,9 @@ with st.form("fatigue_form"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     st.subheader("😫 Karolinska Sleepiness Scale (KSS)")
-    st.markdown("""
-**KSS** reflects your current level of sleepiness:
-
-- 1 = Extremely alert  
-- 3 = Alert  
-- 5 = Neither alert nor sleepy  
-- 7 = Sleepy, but no effort to stay awake  
-- 9 = Very sleepy, fighting sleep
-""")
     kss = st.slider("Select your KSS score", 1, 9, 5)
 
     st.subheader("😩 Samn–Perelli Fatigue Scale (SP)")
-    st.markdown("""
-**SP** reflects your overall fatigue level during operational tasks:
-
-- 1 = Fully alert  
-- 3 = Somewhat tired  
-- 5 = Very tired  
-- 7 = Completely exhausted
-""")
     sp = st.slider("Select your SP score", 1, 7, 3)
 
     review = st.form_submit_button("Review Your Submission")
@@ -101,6 +83,5 @@ if review and not st.session_state.confirmed:
         except Exception as e:
             st.error(f"❌ Submission failed: {e}")
 
-# === Already submitted ===
 if st.session_state.confirmed:
     st.info("You have already submitted your data. To make corrections, please contact the operator.")
