@@ -1,28 +1,31 @@
-# Python bytecode dosyaları
+# Python bytecode files
 __pycache__/
 *.py[cod]
 
-# Jupyter defteri
+# Jupyter notebook checkpoints
 *.ipynb_checkpoints/
 
-# Sanal ortamlar 
+# Virtual environments
 venv/
 .env/
 .venv/
 
-# IDE dosyaları
+# IDE project files
 .vscode/
 .idea/
 
-# MacOS sistem dosyası
+# macOS system file
 .DS_Store
 
-# Excel çıktısı
+# Excel outputs
 *.xlsx
 
-# Streamlit geçici dosyaları
+# Streamlit temporary files
 .streamlit/
 
-# Log veya önbellek dosyaları
+# Log/cache files
 *.log
 *.cache/
+
+# Secret key for Google Sheets API
+credentials.json
