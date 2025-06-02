@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from google.oauth2.service_account import Credentials
+from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import hashlib
 import streamlit.components.v1 as components
@@ -36,31 +36,20 @@ if not st.session_state.authenticated:
 
 # === STEP 1: KSS & SP FORM ===
 if st.session_state.step == 0:
-    st.subheader("📜 Fatigue Self-Assessment")
-    st.markdown("""
-    ### 📟 About the Scales
-
-    - **Karolinska Sleepiness Scale (KSS):** Rates how sleepy you feel right now, from 1 (Very alert) to 9 (Very sleepy).
-    - **Samn–Perelli Scale (SP):** Measures fatigue level, from 1 (Fully alert) to 7 (Completely exhausted).
-    """)
+    st.subheader("📝 Fatigue Self-Assessment")
     st.session_state.kss = st.slider("Karolinska Sleepiness Scale (1=Very alert, 9=Very sleepy)", 1, 9, 5)
     st.session_state.sp = st.slider("Samn–Perelli Fatigue Scale (1=Fully alert, 7=Completely exhausted)", 1, 7, 4)
     if st.button("Continue to Reaction Test"):
         st.session_state.step = 1
-        st.rerun()
+        st.experimental_rerun()
 
 # === STEP 2: INLINE PVT TEST ===
 if st.session_state.step == 1:
     st.subheader("🧪 Psychomotor Vigilance Test")
     st.info("You will be shown a red circle. Click it as fast as you can when it appears.")
-
-    try:
-        with open("pvt.html", "r") as f:
-            pvt_html = f.read()
-        components.html(pvt_html, height=650, scrolling=False)
-    except FileNotFoundError:
-        st.error("PVT test file not found. Please upload 'pvt.html' to the app directory.")
-
+    st.markdown("""
+    <iframe src="https://pvt-test.streamlit.app" width="100%" height="500"></iframe>
+    """, unsafe_allow_html=True)
     st.warning("Once your PVT test ends, please enter your average reaction time and number of lapses.")
 
     avg_rt = st.number_input("Average Reaction Time (ms)", min_value=0, step=1)
@@ -72,15 +61,15 @@ if st.session_state.step == 1:
             "lapses": lapses
         }
         st.session_state.step = 2
-        st.rerun()
+        st.experimental_rerun()
 
 # === STEP 3: WRITE TO GOOGLE SHEETS ===
 if st.session_state.step == 2:
-    st.subheader("📄 Submitting Data...")
+    st.subheader("📤 Submitting Data...")
 
-    # Google Sheets API Setup using google-auth
+    # Google Sheets API Setup
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = Credentials.from_service_account_info(st.secrets["google_sheets"], scopes=scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["google_sheets"], scope)
     client = gspread.authorize(creds)
     sheet = client.open("Pilot_Fatigue_Results")
 
@@ -97,13 +86,13 @@ if st.session_state.step == 2:
 
     st.success("✅ Results submitted successfully!")
     st.session_state.step = 3
-    st.rerun()
+    st.experimental_rerun()
 
 # === STEP 4: DISPLAY PAST RECORDS ===
 if st.session_state.step == 3:
     st.subheader("📈 Your Previous Results")
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = Credentials.from_service_account_info(st.secrets["google_sheets"], scopes=scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["google_sheets"], scope)
     client = gspread.authorize(creds)
     sheet = client.open("Pilot_Fatigue_Results")
     worksheet = sheet.worksheet(f"pilot_{st.session_state.pilot_id}")
