@@ -14,11 +14,18 @@ def append_to_google_sheet(data_row):
     creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open("Pilot_Fatigue_Records").worksheet("FormData")
+
+    # Avoid duplicate submissions: check if already submitted
+    existing_records = sheet.get_all_records()
+    for row in existing_records:
+        if row.get("Pilot_ID") == data_row[0] and row.get("Flight_Phase") == data_row[2] and row.get("Date") == data_row[3]:
+            raise Exception("Duplicate submission detected.")
+
     sheet.append_row(data_row)
 
 # === Streamlit App UI ===
 st.set_page_config(page_title="KSS & SP Fatigue Assessment", layout="centered")
-st.title("🧠 Pilot Fatigue Self-Assessment Form")
+st.title("🧑‍🌺 Pilot Fatigue Self-Assessment Form")
 
 st.markdown("""
 This form allows helicopter pilots to self-report their fatigue levels **before and after flights** using:
@@ -26,8 +33,11 @@ This form allows helicopter pilots to self-report their fatigue levels **before 
 - **KSS (Karolinska Sleepiness Scale)**
 - **SP (Samn–Perelli Fatigue Scale)**
 
-After submission, your data will be automatically saved to the operator's database.
+You will first review and confirm your responses before sending.
 """)
+
+if "confirmed" not in st.session_state:
+    st.session_state.confirmed = False
 
 with st.form("fatigue_form"):
     st.subheader("✈️ Pilot Information")
@@ -35,8 +45,9 @@ with st.form("fatigue_form"):
     flight_type = st.selectbox("Flight Type", ["Ab Initio", "First Officer", "Operational Pilot"])
     flight_phase = st.radio("Assessment Time", ["Pre-Flight", "Post-Flight"])
     date = st.date_input("Date", datetime.date.today())
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    st.subheader("😴 Karolinska Sleepiness Scale (KSS)")
+    st.subheader("😫 Karolinska Sleepiness Scale (KSS)")
     st.markdown("""
 **KSS** reflects your current level of sleepiness:
 
@@ -59,46 +70,37 @@ with st.form("fatigue_form"):
 """)
     sp = st.slider("Select your SP score", 1, 7, 3)
 
-    submitted = st.form_submit_button("Submit")
+    review = st.form_submit_button("Review Your Submission")
 
-# === Submission Result ===
-if submitted:
-    new_row = {
+# === Step 2: Review and Confirm ===
+if review and not st.session_state.confirmed:
+    st.write("📋 Please review your responses below:")
+    st.write(pd.DataFrame([{
         "Pilot_ID": pilot_id,
         "Flight_Type": flight_type,
         "Flight_Phase": flight_phase,
         "Date": date,
+        "Time_Submitted": timestamp,
         "KSS": kss,
         "SP": sp
-    }
+    }]))
 
-    df = pd.DataFrame([new_row])
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Fatigue_Form')
-    output.seek(0)
+    if st.button("✅ Confirm and Send to Operator"):
+        try:
+            append_to_google_sheet([
+                pilot_id,
+                flight_type,
+                flight_phase,
+                str(date),
+                timestamp,
+                kss,
+                sp
+            ])
+            st.session_state.confirmed = True
+            st.success("✅ Data has been successfully submitted to Google Sheets.")
+        except Exception as e:
+            st.error(f"❌ Submission failed: {e}")
 
-    # 🔁 Send to Google Sheets
-    try:
-        result = append_to_google_sheet([
-            pilot_id,
-            flight_type,
-            flight_phase,
-            str(date),
-            kss,
-            sp
-        ])
-        st.success("✅ Data sent to Google Sheets successfully.")
-    except Exception as e:
-        st.error(f"❌ Failed to send data to Google Sheets.\nError: {str(e)}")
-
-    # 📋 Show + Download
-    st.success("📋 Your submission:")
-    st.dataframe(df)
-
-    st.download_button(
-        label="📥 Download Excel File",
-        data=output,
-        file_name="kss_sp_submission.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+# === Already submitted ===
+if st.session_state.confirmed:
+    st.info("You have already submitted your data. To make corrections, please contact the operator.")
