@@ -80,7 +80,7 @@ if submitted:
 
     # 🔁 Send to Google Sheets
     try:
-        append_to_google_sheet([
+        result = append_to_google_sheet([
             pilot_id,
             flight_type,
             flight_phase,
@@ -88,9 +88,9 @@ if submitted:
             kss,
             sp
         ])
-        st.success("✅ Your data has been successfully submitted to the operator.")
+        st.success("✅ Data sent to Google Sheets successfully.")
     except Exception as e:
-        st.error(f"❌ Failed to send data to Google Sheets: {e}")
+        st.error(f"❌ Failed to send data to Google Sheets.\nError: {str(e)}")
 
     # 📋 Show + Download
     st.success("📋 Your submission:")
