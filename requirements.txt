@@ -1,6 +1,4 @@
 streamlit
 pandas
-xlsxwriter
 gspread
-oauth2client
 google-auth
